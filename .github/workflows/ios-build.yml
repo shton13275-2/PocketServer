@@ -18,26 +18,33 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate
 
-      - name: Build for iOS Simulator
+      - name: Build unsigned iOS device app
         run: |
           xcodebuild \
             -project PocketServer.xcodeproj \
             -scheme PocketServer \
-            -sdk iphonesimulator \
-            -configuration Debug \
-            -destination 'generic/platform=iOS Simulator' \
+            -sdk iphoneos \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
             CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_IDENTITY='' \
             build
 
-      - name: Package app
+      - name: Package unsigned IPA
         run: |
-          APP_PATH=$(find . -type d -name PocketServer.app -path '*/Build/Products/*' | head -n 1)
+          APP_PATH=$(find . -type d -name PocketServer.app -path '*/Build/Products/Release-iphoneos/*' | head -n 1)
           test -n "$APP_PATH"
-          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" PocketServer-Simulator-App.zip
+          mkdir -p ipa/Payload
+          cp -R "$APP_PATH" ipa/Payload/
+          cd ipa
+          zip -r ../PocketServer-unsigned.ipa Payload
+          cd ..
 
-      - name: Upload build artifact
+      - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PocketServer-iOS-Simulator
-          path: PocketServer-Simulator-App.zip
+          name: PocketServer-unsigned-IPA
+          path: PocketServer-unsigned.ipa
           if-no-files-found: error
+          retention-days: 14
