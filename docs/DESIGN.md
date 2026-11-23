@@ -1,70 +1,52 @@
 # PocketServer — Design Notes
 
 ## Product goal
-Use an iPhone as a small HTTP file server on the local Wi-Fi network, with a web interface usable from a PC or iPad browser.
+Use an iPhone as a local HTTP file server on the local Wi-Fi network, with a browser interface on a PC or iPad.
 
-## First milestone (MVP)
-1. SwiftUI app with server Start/Stop controls
-2. Show host address and port; copy URL
-3. Browser UI: list files and display basic metadata
-4. Upload files from other devices
-5. Download files to other devices
-6. Delete selected files
-7. Store content in the app's own Documents area
-8. Basic authentication, path validation, and safe request handling
-9. GitHub Actions workflow to build an unsigned iOS artifact
+## MVP milestones
+1. SwiftUI app with Start/Stop controls
+2. Show local address and port; copy/share URL
+3. Browser file listing and metadata
+4. Upload/download files
+5. Delete files
+6. Dedicated app storage
+7. Authentication, path validation and safe handling
+8. GitHub Actions unsigned IPA artifact
 
-## Architecture (initial proposal)
-- Native UI: SwiftUI
-- HTTP server: embedded Swift HTTP server library (evaluate and select before implementation)
-- Browser interface: bundled HTML/CSS/JavaScript served by the app
-- File storage: app sandbox, dedicated server directory
-- Build: GitHub Actions macOS runner, Xcode
+## Architecture
+- SwiftUI native UI
+- Native Network framework listener (NWListener) for initial HTTP server
+- Browser interface will be served by the app
+- Files stored in a dedicated sandbox directory
+- Build via GitHub Actions macOS runner
 
 ## Constraints
-- No local Mac assumed; use GitHub Actions for builds.
-- iOS background execution is not a guarantee for a general-purpose server. MVP runs while the app is foregrounded and clearly reports server status.
-- Access only files in the app's designated directory, plus files explicitly imported through the system picker in a later phase.
+- No local Mac assumed.
+- iOS does not guarantee background execution for a generic server; initial operation is foreground.
+- Only dedicated app storage is accessible initially.
 
-## Security requirements
-- LAN-only by default; no automatic port forwarding or Internet exposure.
-- Authentication required for file operations.
-- Validate request paths and reject traversal attempts.
-- Generate safe storage names / avoid unsafe filesystem paths.
-- Restrict file operations to the dedicated server directory.
-- Do not expose credentials in logs or URLs.
-- Show a clear warning that devices on the same network may not all be trusted.
+## Security
+- Local network usage only by default; no port forwarding.
+- Authentication for file management.
+- Reject path traversal and keep operations within server storage.
+- Never log passwords or file contents.
+- Warn users to use trusted Wi-Fi networks.
 
 ## Milestones
 ### M0 — Setup
-- Repository and design document
-- Xcode project skeleton
-- GitHub Actions build workflow
+Repository, documentation, app skeleton and CI.
 
 ### M1 — Server lifecycle
-- Start/stop
-- Address/port display
-- LAN URL and copy button
-- Foreground status
+Implemented as first development step: start/stop listener, local IPv4/port display and a basic HTTP response page. Requires device testing.
 
 ### M2 — Browser file management
-- File listing and metadata
-- Upload/download
-- Delete
-- Refresh and basic search
+Listing, metadata, upload/download/delete, refresh/search.
 
 ### M3 — Security and usability
-- Authentication
-- Path-safety tests
-- Upload size / storage error handling
-- Clear error messages
+Authentication, path safety, size limits, storage errors and clear messages.
 
 ### M4 — Polish
-- Transfer progress
-- Multi-file uploads
-- Drag-and-drop in desktop browsers
-- Storage usage indicator
-- Optional Files app import/export
+Transfer progress, multiple uploads, desktop drag/drop, storage usage and optional Files app import/export.
 
-## Definition of done for MVP
-A user can open PocketServer on an iPhone, start the server, open the displayed URL from a browser on a device connected to the same LAN, authenticate, upload a file, see it listed, download it, and delete it. Server shutdown is reliable when stopped in the app.
+## MVP completion
+Open app on iPhone, start server, visit URL from a browser on the same LAN, authenticate, upload, list, download and delete a file. Stop server cleanly in app.
