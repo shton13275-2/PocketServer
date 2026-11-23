@@ -14,7 +14,9 @@ targets:
     type: application
     platform: iOS
     sources:
-      - PocketServer
+      - path: PocketServer
+        excludes:
+          - ShareExtension.swift
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: jp.shton13275.PocketServer
