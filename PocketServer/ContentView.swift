@@ -84,8 +84,7 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }.buttonStyle(.bordered)
             Button {
-                server.importSharedInbox()
-                refreshFiles()
+                Task { await server.importSharedInbox(); refreshFiles() }
             } label: {
                 Label("共有メニューから取り込む", systemImage: "square.and.arrow.down")
                     .frame(maxWidth: .infinity, alignment: .leading)
