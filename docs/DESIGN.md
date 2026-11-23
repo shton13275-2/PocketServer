@@ -8,12 +8,16 @@ Use an iPhone as a local HTTP file server on the local Wi-Fi network, with a bro
 2. Browser file listing and downloads
 3. Browser single-file upload and deletion
 4. Native Files picker import (multi-select)
-5. Native URL download (HTTP/HTTPS)\n6. iOS Share Extension for shared files and URL links using an App Group inbox\n7. In-app WebKit browser with WKDownload handling
+5. Native URL download (HTTP/HTTPS)
+6. iOS Share Extension for shared files and URL links using an App Group inbox
+7. In-app WebKit browser with WKDownload handling
 6. Native list, refresh, and delete
 7. 25 MB per-file limit for server downloads, browser upload, native import, and URL downloads
 9. GitHub Actions unsigned IPA build
 
-## Architecture\n- Embedded iOS Share Extension and App Group shared inbox\n- WKWebView navigation and WKDownload temporary-file handling
+## Architecture
+- Embedded iOS Share Extension and App Group shared inbox
+- WKWebView navigation and WKDownload temporary-file handling
 - SwiftUI native UI
 - Network framework NWListener local HTTP server
 - Browser UI served by the app
@@ -47,8 +51,14 @@ Listing, download, single-file upload, delete routes and HTML controls added. Bu
 ### M3 — Native file management
 Files picker import, URL download, in-app listing, refresh and delete added. Build and real-device testing pending.
 
-### M4 — Share import and browser download\nShare Extension, shared inbox, and in-app WebKit browser added; CI/device validation pending.\n\n### M5 — Security and polish
+### M4 — Share import and browser download
+Share Extension, shared inbox, and in-app WebKit browser added; CI/device validation pending.
+
+### M5 — Security and polish
 Authentication, improved streaming transfer, progress and cancellation, robust HTTP handling, browser multi-file upload.
 
-## Verification status\n- CI build status and on-device behavior must be checked after code changes; implemented features are not considered verified until build and device/browser tests pass.\n\n## MVP completion
+## Verification status
+- CI build status and on-device behavior must be checked after code changes; implemented features are not considered verified until build and device/browser tests pass.
+
+## MVP completion
 On iPhone, start server; from a browser on the same LAN, upload, list, download and delete files; in-app import and URL download; stop server cleanly.
