@@ -38,7 +38,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: jp.shton13275.PocketServer.ShareExtension
-        PRODUCT_NAME: PocketServerShareExtension
+        PRODUCT_NAME: PocketServerShareExtension\n        INFOPLIST_KEY_CFBundleDisplayName: PocketServer
         INFOPLIST_FILE: PocketServer/ShareExtension-Info.plist
         CODE_SIGNING_ALLOWED: NO
         CODE_SIGN_ENTITLEMENTS: PocketServer/ShareExtension.entitlements
