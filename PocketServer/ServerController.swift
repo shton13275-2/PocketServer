@@ -95,22 +95,36 @@ final class ServerController: ObservableObject {
     }
 
     func downloadFromURL(_ rawURL: String) async {
-        guard let url = URL(string: rawURL), ["http", "https"].contains(url.scheme?.lowercased() ?? "") else {
-            lastError = "HTTPまたはHTTPSのURLを入力してください"
+        guard let url = URL(string: rawURL), ["http", "https"].contains(url.scheme?.lowercased() ?? ""),
+              url.host != nil else {
+            lastError = "有効なHTTPまたはHTTPS URLを入力してください"
+            statusMessage = "失敗"
             return
         }
         statusMessage = "ダウンロード中…"
         lastError = nil
         do {
-            let (data, _) = try await URLSession.shared.data(from: url)
-            guard data.count <= 25 * 1024 * 1024 else {
-                lastError = "25 MBを超えるファイルはダウンロードできません"
+            let (temporaryURL, response) = try await URLSession.shared.download(from: url)
+            defer { try? FileManager.default.removeItem(at: temporaryURL) }
+            guard let httpResponse = response as? HTTPURLResponse,
+                  (200...299).contains(httpResponse.statusCode) else {
+                let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+                lastError = "ダウンロード先がエラーを返しました (HTTP \(code))"
                 statusMessage = "失敗"
                 return
             }
-            let suggestedName = url.lastPathComponent.isEmpty ? "download" : url.lastPathComponent
+            let attributes = try FileManager.default.attributesOfItem(atPath: temporaryURL.path)
+            let fileSize = (attributes[.size] as? NSNumber)?.intValue ?? 0
+            guard fileSize <= 25 * 1024 * 1024 else {
+                lastError = "25 MBを超えるファイルは保存できません"
+                statusMessage = "失敗"
+                return
+            }
+            let rawSuggestedName = httpResponse.suggestedFilename ?? url.lastPathComponent
+            let candidate = URL(fileURLWithPath: rawSuggestedName).lastPathComponent
+            let suggestedName = candidate.isEmpty ? "download" : candidate
             let destination = uniqueDestination(for: suggestedName)
-            try data.write(to: destination, options: .atomic)
+            try FileManager.default.copyItem(at: temporaryURL, to: destination)
             statusMessage = "ダウンロード完了: \(destination.lastPathComponent)"
         } catch {
             lastError = "ダウンロード失敗: \(error.localizedDescription)"
@@ -305,7 +319,8 @@ final class ServerController: ObservableObject {
         let rows = files.sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }.compactMap { url -> String? in
             guard let values = try? url.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey]), values.isRegularFile == true, isSafeFilename(url.lastPathComponent) else { return nil }
             let safeName = htmlEscape(url.lastPathComponent)
-            let encoded = url.lastPathComponent.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed.subtracting(CharacterSet(charactersIn: "/"))) ?? ""
+            let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~")
+            let encoded = url.lastPathComponent.addingPercentEncoding(withAllowedCharacters: allowed) ?? ""
             let size = ByteCountFormatter.string(fromByteCount: Int64(values.fileSize ?? 0), countStyle: .file)
             return "<li><span>\(safeName) <small>(\(size))</small></span><div class=\"actions\"><a href=\"/download/\(encoded)\">ダウンロード</a><form method=\"post\" action=\"/delete/\(encoded)\" onsubmit=\"return confirm('このファイルを削除しますか？')\"><button type=\"submit\">削除</button></form></div></li>"
         }.joined()
