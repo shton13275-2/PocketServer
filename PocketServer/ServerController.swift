@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import Network
 
 @MainActor
@@ -47,8 +48,8 @@ final class ServerController: ObservableObject {
                     }
                 }
             }
-            listener.newConnectionHandler = { [weak self] connection in
-                self?.handle(connection)
+            listener.newConnectionHandler = { connection in
+                Self.handle(connection, on: self.queue)
             }
             listener.start(queue: queue)
             statusMessage = "起動処理中"
@@ -66,9 +67,9 @@ final class ServerController: ObservableObject {
         localAddress = nil
     }
 
-    private func handle(_ connection: NWConnection) {
+    private static func handle(_ connection: NWConnection, on queue: DispatchQueue) {
         connection.start(queue: queue)
-        connection.receive(minimumIncompleteLength: 1, maximumLength: 16_384) { [weak self] data, _, _, error in
+        connection.receive(minimumIncompleteLength: 1, maximumLength: 16_384) { data, _, _, error in
             guard error == nil, let data, !data.isEmpty else {
                 connection.cancel()
                 return
@@ -88,12 +89,10 @@ final class ServerController: ObservableObject {
             connection.send(content: response, completion: .contentProcessed { _ in
                 connection.cancel()
             })
-            _ = self
         }
     }
 
     private static func wifiIPv4Address() -> String? {
-        var addresses: [String] = []
         var ifaddr: UnsafeMutablePointer<ifaddrs>?
         guard getifaddrs(&ifaddr) == 0, let first = ifaddr else { return nil }
         defer { freeifaddrs(ifaddr) }
@@ -101,15 +100,24 @@ final class ServerController: ObservableObject {
         for pointer in sequence(first: first, next: { $0.pointee.ifa_next }) {
             let interface = pointer.pointee
             guard let addr = interface.ifa_addr, addr.pointee.sa_family == UInt8(AF_INET) else { continue }
-            let name = String(cString: interface.ifa_name)
-            guard name == "en0" else { continue }
+            guard String(cString: interface.ifa_name) == "en0" else { continue }
             var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
-            let result = getnameinfo(addr, socklen_t(addr.pointee.sa_len), &hostname, socklen_t(hostname.count), nil, 0, NI_NUMERICHOST)
+            let result = getnameinfo(
+                addr,
+                socklen_t(addr.pointee.sa_len),
+                &hostname,
+                socklen_t(hostname.count),
+                nil,
+                0,
+                NI_NUMERICHOST
+            )
             if result == 0 {
-                let value = String(cString: hostname)
-                if !value.isEmpty && value != "127.0.0.1" { addresses.append(value) }
+                let address = String(cString: hostname)
+                if !address.isEmpty && address != "127.0.0.1" {
+                    return address
+                }
             }
         }
-        return addresses.first
+        return nil
     }
 }
