@@ -10,7 +10,7 @@ struct ContentView: View {
                     VStack(spacing: 12) {
                         Image(systemName: "externaldrive.connected.to.line.below")
                             .font(.system(size: 48, weight: .regular))
-                            .foregroundStyle(.tint)
+                            .foregroundStyle(Color.accentColor)
                         Text("PocketServer").font(.largeTitle.bold())
                         Text("iPhoneをローカルファイルサーバーに")
                             .font(.subheadline).foregroundStyle(.secondary)
@@ -70,11 +70,11 @@ private struct FeatureRow: View {
     let completed: Bool
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: icon).foregroundStyle(completed ? .green : .tint).frame(width: 24)
+            Image(systemName: icon).foregroundStyle(completed ? Color.green : Color.accentColor).frame(width: 24)
             Text(title)
             Spacer()
             Image(systemName: completed ? "checkmark.circle.fill" : "clock")
-                .foregroundStyle(completed ? .green : .secondary)
+                .foregroundStyle(completed ? Color.green : Color.secondary)
         }.font(.subheadline)
     }
 }
