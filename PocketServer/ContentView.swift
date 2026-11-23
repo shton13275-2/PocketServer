@@ -36,8 +36,8 @@ struct ContentView: View {
                 case .success(let selectedURLs):
                     server.importFiles(selectedURLs)
                     refreshFiles()
-                case .failure(let error):
-                    server.lastError = error.localizedDescription
+                case .failure:
+                    // The picker was dismissed or failed; leave the current screen state unchanged.
                 }
             }
         }
