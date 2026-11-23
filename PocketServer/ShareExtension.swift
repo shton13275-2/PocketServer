@@ -24,7 +24,7 @@ final class ShareViewController: UIViewController {
         }
         let providers = items.flatMap { $0.attachments ?? [] }
         guard !providers.isEmpty,
-              let base = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.jp.shton13275.PocketServer") else {
+              let base = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.jp.shton13275.pocketserver") else {
             finish("共有フォルダを利用できません")
             return
         }
@@ -68,7 +68,11 @@ final class ShareViewController: UIViewController {
                     if let url {
                         let name = url.lastPathComponent.isEmpty ? "shared-file" : url.lastPathComponent
                         let destination = inbox.appendingPathComponent(UUID().uuidString + "-" + name)
-                        if (try? FileManager.default.copyItem(at: url, to: destination)) != nil {
+                        let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
+                        let size = (attrs?[.size] as? NSNumber)?.intValue ?? 0
+                        let isRegular = (attrs?[.type] as? FileAttributeType) == .typeRegular
+                        if isRegular, size <= 25 * 1024 * 1024,
+                           (try? FileManager.default.copyItem(at: url, to: destination)) != nil {
                             lock.lock(); savedCount += 1; lock.unlock()
                         }
                     }
