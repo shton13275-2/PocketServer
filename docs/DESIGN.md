@@ -24,7 +24,7 @@ Use an iPhone as a local HTTP file server on the local Wi-Fi network, with a bro
 - Local Wi-Fi use; no Internet-facing setup or port forwarding
 - Foreground operation only; background server operation is not guaranteed
 - Only app-managed storage is exposed
-- Native URL downloads currently fetch the response into memory before saving; a size check is performed after response data is received
+- Native URL downloads use URLSession download-to-temporary-file; validate 2xx HTTP response and enforce a 25 MB size limit before copying into app storage
 - Browser upload supports one selected file per submission
 
 ## Security
@@ -50,5 +50,5 @@ Files picker import, URL download, in-app listing, refresh and delete added. Bui
 ### M4 — Security and polish
 Authentication, improved streaming transfer, progress and cancellation, robust HTTP handling, browser multi-file upload.
 
-## MVP completion
+## Verification status\n- CI build status and on-device behavior must be checked after code changes; implemented features are not considered verified until build and device/browser tests pass.\n\n## MVP completion
 On iPhone, start server; from a browser on the same LAN, upload, list, download and delete files; in-app import and URL download; stop server cleanly.
