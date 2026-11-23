@@ -1,30 +1,23 @@
 # PocketServer
 
-PocketServer is an iOS app that turns an iPhone into a local-network file server. The first milestone is a foreground-running server that lets another device's browser upload and download files.
+PocketServer is an iOS app that turns an iPhone into a local-network file server. It is designed to serve a browser on a PC or iPad while the iPhone app is open.
 
-## MVP goals
-- Start/stop an HTTP server from the iOS app
-- Show the local URL and offer a copy action
-- Browser-based file listing
-- Upload and download files
-- Delete files
-- Store files in app-local storage
-- Basic authentication and safe path handling
-- Build an unsigned iOS artifact with GitHub Actions
+## MVP features
+- Start/stop a local HTTP server
+- Display the local network address
+- Browser-based file list
+- Upload/download/delete
+- App-specific storage
+- Authentication and path safety
+- GitHub Actions builds an unsigned IPA artifact
 
-## Non-goals for the first milestone
-- Internet-facing server or port forwarding
-- Always-on background server guarantees
-- Arbitrary iOS file access without user selection
-- Remote control of iOS or other apps
+## Initial limitations
+- No Internet-facing server or port forwarding
+- No guaranteed background server operation
+- No arbitrary iOS file access
 
-## Development
-Swift and SwiftUI. The server is initially designed to operate while the app is in the foreground, since iOS may suspend apps in the background.
-
-See [Design](docs/DESIGN.md).
-
-## Security
-Default to local network use; require authentication; validate paths and prevent directory traversal; do not log credentials or file contents. Wi-Fi access does not guarantee that all devices are trusted.
+## Build
+GitHub Actions builds an unsigned iOS device app and packages it as an IPA artifact. Unsigned IPA files cannot be directly installed on a device without a valid signing process.
 
 ## Status
-Repository setup is complete. Implementation and device testing have not yet started.
+M0 project setup is complete. M1 basic listener and status UI are in initial implementation; device testing is still needed.
