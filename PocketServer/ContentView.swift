@@ -132,6 +132,12 @@ struct ContentView: View {
                             Text(fileSize(file)).font(.caption).foregroundStyle(.secondary)
                         }
                         Spacer()
+                        ShareLink(item: file) {
+                            Image(systemName: "square.and.arrow.down")
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel("ファイルを書き出す・ダウンロード")
+
                         Button(role: .destructive) {
                             server.deleteLocalFile(file)
                             refreshFiles()
