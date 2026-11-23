@@ -3,50 +3,51 @@
 ## Product goal
 Use an iPhone as a local HTTP file server on the local Wi-Fi network, with a browser interface on a PC or iPad.
 
-## MVP milestones
-1. SwiftUI app with Start/Stop controls
-2. Show local address and port; copy/share URL
-3. Browser file listing and metadata
-4. Upload/download files
-5. Delete files
-6. Dedicated app storage
-7. Authentication, path validation and safe handling
-8. GitHub Actions unsigned IPA artifact
+## MVP features
+1. Start/stop server
+2. Show/share local address
+3. Browser file listing
+4. Download files
+5. Upload files
+6. Delete files
+7. Authentication, path safety and limits
+8. GitHub Actions unsigned IPA build
 
 ## Architecture
 - SwiftUI native UI
-- Native Network framework listener (NWListener) for initial HTTP server
-- Browser interface will be served by the app
-- Files stored in a dedicated sandbox directory
-- Build via GitHub Actions macOS runner
+- Network framework NWListener
+- Browser UI served by the app
+- Dedicated app sandbox folder: Documents/PocketServerFiles
+- GitHub Actions macOS build
 
 ## Constraints
-- No local Mac assumed.
-- iOS does not guarantee background execution for a generic server; initial operation is foreground.
-- Only dedicated app storage is accessible initially.
+- Local Wi-Fi use; no Internet-facing setup or port forwarding
+- Foreground operation only; background server operation is not guaranteed
+- Only app-managed storage is exposed
 
 ## Security
-- Local network usage only by default; no port forwarding.
-- Authentication for file management.
-- Reject path traversal and keep operations within server storage.
-- Never log passwords or file contents.
-- Warn users to use trusted Wi-Fi networks.
+- No authentication in the current M2 partial implementation; use only trusted networks and stop the server after use
+- Reject unsafe filenames and keep access within the dedicated folder
+- Downloads are limited to 25 MB in this initial implementation
+- Authentication and stricter request/size handling are required before broader use
 
 ## Milestones
 ### M0 — Setup
-Repository, documentation, app skeleton and CI.
+Repository, docs, app skeleton and CI.
 
-### M1 — Server lifecycle
-Implemented as first development step: start/stop listener, local IPv4/port display and a basic HTTP response page. Requires device testing.
+### M1 — Server lifecycle (verified by user)
+Start/stop, local address and basic response.
 
-### M2 — Browser file management
-Listing, metadata, upload/download/delete, refresh/search.
+### M2 — Browser file management (in progress)
+- Implemented in code: list files in dedicated storage and download individual files
+- Not implemented: upload, delete, refresh/search controls
+- Requires fresh build and user device/browser verification
 
 ### M3 — Security and usability
-Authentication, path safety, size limits, storage errors and clear messages.
+Authentication, stronger HTTP parsing, upload size limits, error handling and clearer messages.
 
 ### M4 — Polish
-Transfer progress, multiple uploads, desktop drag/drop, storage usage and optional Files app import/export.
+Transfer progress, multi-file upload, drag/drop, storage usage, optional Files app import/export.
 
 ## MVP completion
-Open app on iPhone, start server, visit URL from a browser on the same LAN, authenticate, upload, list, download and delete a file. Stop server cleanly in app.
+On iPhone, start server; from a browser on the same LAN, upload, list, download and delete files safely; stop server cleanly.
