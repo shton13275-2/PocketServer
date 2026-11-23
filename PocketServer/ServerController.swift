@@ -166,7 +166,7 @@ final class ServerController: ObservableObject {
         }
     }
 
-    func importSharedInbox() {
+    func importSharedInbox() async {
         guard let shared = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.jp.shton13275.pocketserver") else { return }
         let inbox = shared.appendingPathComponent("SharedInbox", isDirectory: true)
         guard let items = try? FileManager.default.contentsOfDirectory(at: inbox, includingPropertiesForKeys: [.fileSizeKey], options: [.skipsHiddenFiles]) else { return }
@@ -175,7 +175,7 @@ final class ServerController: ObservableObject {
                 let attrs = try? FileManager.default.attributesOfItem(atPath: item.path)
                 let size = (attrs?[.size] as? NSNumber)?.intValue ?? 0
                 if size <= 4096, let raw = try? String(contentsOf: item, encoding: .utf8) {
-                    Task { await downloadFromURL(raw.trimmingCharacters(in: .whitespacesAndNewlines)) }
+                    await downloadFromURL(raw.trimmingCharacters(in: .whitespacesAndNewlines))
                 } else {
                     lastError = "共有URLが大きすぎるか読み取れません"
                 }
