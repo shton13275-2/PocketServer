@@ -65,6 +65,86 @@ final class ServerController: ObservableObject {
         localAddress = nil
     }
 
+    func filesInStorage() -> [URL] {
+        let folder = Self.storageURL()
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        return ((try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.fileSizeKey], options: [.skipsHiddenFiles])) ?? [])
+            .filter { !$0.hasDirectoryPath }
+            .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+    }
+
+    func importFiles(_ urls: [URL]) {
+        for source in urls {
+            let access = source.startAccessingSecurityScopedResource()
+            defer { if access { source.stopAccessingSecurityScopedResource() } }
+            do {
+                let attributes = try FileManager.default.attributesOfItem(atPath: source.path)
+                let fileSize = (attributes[.size] as? NSNumber)?.intValue ?? 0
+                guard fileSize <= 25 * 1024 * 1024 else {
+                    lastError = "\(source.lastPathComponent): 25 MBを超えるファイルは取り込めません"
+                    continue
+                }
+                let destination = uniqueDestination(for: source.lastPathComponent)
+                try FileManager.default.copyItem(at: source, to: destination)
+                statusMessage = "取り込み完了: \(source.lastPathComponent)"
+                lastError = nil
+            } catch {
+                lastError = "取り込み失敗: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    func downloadFromURL(_ rawURL: String) async {
+        guard let url = URL(string: rawURL), ["http", "https"].contains(url.scheme?.lowercased() ?? "") else {
+            lastError = "HTTPまたはHTTPSのURLを入力してください"
+            return
+        }
+        statusMessage = "ダウンロード中…"
+        lastError = nil
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            guard data.count <= 25 * 1024 * 1024 else {
+                lastError = "25 MBを超えるファイルはダウンロードできません"
+                statusMessage = "失敗"
+                return
+            }
+            let suggestedName = url.lastPathComponent.isEmpty ? "download" : url.lastPathComponent
+            let destination = uniqueDestination(for: suggestedName)
+            try data.write(to: destination, options: .atomic)
+            statusMessage = "ダウンロード完了: \(destination.lastPathComponent)"
+        } catch {
+            lastError = "ダウンロード失敗: \(error.localizedDescription)"
+            statusMessage = "失敗"
+        }
+    }
+
+    func deleteLocalFile(_ url: URL) {
+        do {
+            try FileManager.default.removeItem(at: url)
+            lastError = nil
+            statusMessage = "削除しました"
+        } catch {
+            lastError = "削除失敗: \(error.localizedDescription)"
+        }
+    }
+
+    private func uniqueDestination(for originalName: String) -> URL {
+        let safeName = originalName.isEmpty ? "file" : originalName
+        let folder = Self.storageURL()
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        var destination = folder.appendingPathComponent(safeName)
+        var index = 2
+        while FileManager.default.fileExists(atPath: destination.path) {
+            let nameURL = URL(fileURLWithPath: safeName)
+            let base = nameURL.deletingPathExtension().lastPathComponent
+            let ext = nameURL.pathExtension
+            let nextName = ext.isEmpty ? "\(base) (\(index))" : "\(base) (\(index)).\(ext)"
+            destination = folder.appendingPathComponent(nextName)
+            index += 1
+        }
+        return destination
+    }
+
     nonisolated private static func handle(_ connection: NWConnection, on queue: DispatchQueue) {
         connection.start(queue: queue)
         receiveRequest(connection, accumulated: Data(), on: queue)
