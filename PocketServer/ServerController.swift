@@ -140,7 +140,12 @@ final class ServerController: ObservableObject {
         }
     }
 
-    func reportDownloadError(_ message: String) {\n        lastError = message\n        statusMessage = "失敗"\n    }\n\n    func saveDownloadedFile(from temporaryURL: URL, suggestedName: String) {
+    func reportDownloadError(_ message: String) {
+        lastError = message
+        statusMessage = "失敗"
+    }
+
+    func saveDownloadedFile(from temporaryURL: URL, suggestedName: String) {
         do {
             let attrs = try FileManager.default.attributesOfItem(atPath: temporaryURL.path)
             let size = (attrs[.size] as? NSNumber)?.intValue ?? 0
@@ -180,8 +185,20 @@ final class ServerController: ObservableObject {
                 try? FileManager.default.removeItem(at: item)
                 continue
             }
+            let prefixedName = item.lastPathComponent
+            let originalName: String
+            if prefixedName.count > 37, let _ = UUID(uuidString: String(prefixedName.prefix(36))), prefixedName.dropFirst(36).first == "-" {
+                originalName = String(prefixedName.dropFirst(37))
+            } else {
+                originalName = prefixedName
+            }
+            guard Self.isSafeFilename(originalName) else {
+                lastError = "共有ファイルの名前が無効です"
+                try? FileManager.default.removeItem(at: item)
+                continue
+            }
             do {
-                let dest = uniqueDestination(for: item.lastPathComponent)
+                let dest = uniqueDestination(for: originalName)
                 try FileManager.default.copyItem(at: item, to: dest)
                 try FileManager.default.removeItem(at: item)
                 statusMessage = "共有ファイルを取り込みました"
@@ -236,7 +253,9 @@ final class ServerController: ObservableObject {
                 send(status: "413 Payload Too Large", body: Data("Request too large".utf8), contentType: "text/plain", on: connection)
                 return
             }
-            guard let headerEnd = all.range(of: Data("\r\n\r\n".utf8)) else {
+            guard let headerEnd = all.range(of: Data("\r
+\r
+".utf8)) else {
                 receiveRequest(connection, accumulated: all, on: queue)
                 return
             }
@@ -245,7 +264,8 @@ final class ServerController: ObservableObject {
                 send(status: "400 Bad Request", body: Data("Bad headers".utf8), contentType: "text/plain", on: connection)
                 return
             }
-            let headerLines = headerText.components(separatedBy: "\r\n")
+            let headerLines = headerText.components(separatedBy: "\r
+")
             guard let requestLine = headerLines.first else {
                 send(status: "400 Bad Request", body: Data("Bad request".utf8), contentType: "text/plain", on: connection)
                 return
@@ -358,12 +378,16 @@ final class ServerController: ObservableObject {
 
     nonisolated private static func parseMultipart(_ body: Data, boundary: String) -> MultipartFile? {
         guard !boundary.isEmpty else { return nil }
-        let headerSeparator = Data("\r\n\r\n".utf8)
-        let bodyBoundary = Data("\r\n--\(boundary)".utf8)
+        let headerSeparator = Data("\r
+\r
+".utf8)
+        let bodyBoundary = Data("\r
+--\(boundary)".utf8)
         guard let separator = body.range(of: headerSeparator),
               let nextBoundary = body.range(of: bodyBoundary, in: separator.upperBound..<body.count) else { return nil }
         let headerText = String(data: body.subdata(in: 0..<separator.lowerBound), encoding: .utf8) ?? ""
-        guard let disposition = headerText.components(separatedBy: "\r\n").first(where: { $0.lowercased().hasPrefix("content-disposition:") }),
+        guard let disposition = headerText.components(separatedBy: "\r
+").first(where: { $0.lowercased().hasPrefix("content-disposition:") }),
               let fileNameToken = disposition.range(of: "filename=\""),
               let endQuote = disposition[fileNameToken.upperBound...].firstIndex(of: "\"") else { return nil }
         let rawName = String(disposition[fileNameToken.upperBound..<endQuote])
@@ -427,7 +451,13 @@ final class ServerController: ObservableObject {
     }
 
     nonisolated private static func send(status: String, body: Data, contentType: String, extraHeaders: String = "", on connection: NWConnection) {
-        let header = "HTTP/1.1 \(status)\r\nContent-Type: \(contentType)\r\nContent-Length: \(body.count)\r\n\(extraHeaders.isEmpty ? "" : extraHeaders + "\r\n")Connection: close\r\n\r\n"
+        let header = "HTTP/1.1 \(status)\r
+Content-Type: \(contentType)\r
+Content-Length: \(body.count)\r
+\(extraHeaders.isEmpty ? "" : extraHeaders + "\r
+")Connection: close\r
+\r
+"
         var response = Data(header.utf8)
         response.append(body)
         connection.send(content: response, completion: .contentProcessed { _ in connection.cancel() })
