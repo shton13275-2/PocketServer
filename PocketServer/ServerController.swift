@@ -172,15 +172,20 @@ final class ServerController: ObservableObject {
         guard let items = try? FileManager.default.contentsOfDirectory(at: inbox, includingPropertiesForKeys: [.fileSizeKey], options: [.skipsHiddenFiles]) else { return }
         for item in items {
             if item.pathExtension.lowercased() == "urltxt" {
-                if let raw = try? String(contentsOf: item, encoding: .utf8) {
+                let attrs = try? FileManager.default.attributesOfItem(atPath: item.path)
+                let size = (attrs?[.size] as? NSNumber)?.intValue ?? 0
+                if size <= 4096, let raw = try? String(contentsOf: item, encoding: .utf8) {
                     Task { await downloadFromURL(raw.trimmingCharacters(in: .whitespacesAndNewlines)) }
+                } else {
+                    lastError = "共有URLが大きすぎるか読み取れません"
                 }
                 try? FileManager.default.removeItem(at: item)
                 continue
             }
             let attrs = try? FileManager.default.attributesOfItem(atPath: item.path)
+            let fileType = attrs?[.type] as? FileAttributeType
             let size = (attrs?[.size] as? NSNumber)?.intValue ?? 0
-            guard size <= 25 * 1024 * 1024, Self.isSafeFilename(item.lastPathComponent) else {
+            guard fileType == .typeRegular, size <= 25 * 1024 * 1024, Self.isSafeFilename(item.lastPathComponent) else {
                 lastError = "\(item.lastPathComponent): 25 MB超過または無効なファイル"
                 try? FileManager.default.removeItem(at: item)
                 continue
