@@ -3,7 +3,8 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @StateObject private var server = ServerController()
-    @State private var showingImporter = false\n    @State private var showingBrowser = false
+    @State private var showingImporter = false
+    @State private var showingBrowser = false
     @State private var downloadURL = ""
     @State private var files: [URL] = []
 
@@ -19,7 +20,6 @@ struct ContentView: View {
                         Text("iPhoneをローカルファイルサーバーに")
                             .font(.subheadline).foregroundStyle(.secondary)
                     }.padding(.top, 20)
-
                     serverCard
                     nativeFileTools
                     fileListCard
@@ -31,7 +31,10 @@ struct ContentView: View {
             .navigationTitle("PocketServer").navigationBarTitleDisplayMode(.inline)
             .background(Color(uiColor: .systemGroupedBackground))
             .onAppear { server.importSharedInbox(); refreshFiles() }
-            .sheet(isPresented: $showingBrowser) {\n                InAppBrowserSheet(server: server, onSaved: refreshFiles)\n            }\n            .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.item], allowsMultipleSelection: true) { result in
+            .sheet(isPresented: $showingBrowser) {
+                InAppBrowserSheet(server: server, onSaved: refreshFiles)
+            }
+            .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.item], allowsMultipleSelection: true) { result in
                 switch result {
                 case .success(let selectedURLs):
                     server.importFiles(selectedURLs)
@@ -149,17 +152,15 @@ struct ContentView: View {
             FeatureRow(title: "ブラウザでファイル一覧・ダウンロード", icon: "folder", completed: true)
             FeatureRow(title: "ブラウザからアップロード", icon: "arrow.up.doc", completed: true)
             FeatureRow(title: "ブラウザから削除", icon: "trash", completed: true)
-            FeatureRow(title: "アプリ内ファイル取り込み", icon: "square.and.arrow.down", completed: true)
-            FeatureRow(title: "URLダウンロード・アプリ内ブラウザ", icon: "link", completed: true)\n            FeatureRow(title: "共有メニューからの取り込み", icon: "square.and.arrow.down", completed: true)
+            FeatureRow(title: "「ファイル」から取り込み", icon: "square.and.arrow.down", completed: true)
+            FeatureRow(title: "URLダウンロード・アプリ内ブラウザ", icon: "link", completed: true)
+            FeatureRow(title: "共有メニューから取り込み", icon: "square.and.arrow.down", completed: true)
             FeatureRow(title: "パスワード保護", icon: "lock", completed: false)
         }.frame(maxWidth: .infinity, alignment: .leading).padding(18)
             .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18))
     }
 
-    private func refreshFiles() {
-        files = server.filesInStorage()
-    }
-
+    private func refreshFiles() { files = server.filesInStorage() }
     private func fileSize(_ url: URL) -> String {
         let bytes = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
         return ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file)
@@ -180,5 +181,4 @@ private struct FeatureRow: View {
         }.font(.subheadline)
     }
 }
-
 #Preview { ContentView() }
