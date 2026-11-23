@@ -15,6 +15,7 @@ settings:
     INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
     INFOPLIST_KEY_UILaunchScreen_Generation: YES
     INFOPLIST_KEY_UIStatusBarStyle: UIStatusBarStyleDefault
+    INFOPLIST_KEY_NSLocalNetworkUsageDescription: "PocketServerは同じWi-Fi上のPCやiPadとファイルを送受信するため、ローカルネットワークへのアクセスを使用します。"
     GENERATE_INFOPLIST_FILE: YES
 targets:
   PocketServer:
