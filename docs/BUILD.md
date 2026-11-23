@@ -14,7 +14,7 @@ The workflow builds an unsigned device IPA. Installing it requires a signing met
 
 ## Added features
 - Share Extension embedded in the app.
-- App Group `group.jp.shton13275.PocketServer` exchanges shared files and URL links.
+- App Group `group.jp.shton13275.pocketserver` exchanges shared files and URL links.
 - In-app browser uses WebKit download handling and saves files into PocketServer's folder, with a 25 MB limit.
 
 ## Verification
