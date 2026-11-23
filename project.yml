@@ -1,0 +1,28 @@
+name: PocketServer
+options:
+  bundleIdPrefix: jp.shton13275
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    PRODUCT_BUNDLE_IDENTIFIER: jp.shton13275.PocketServer
+    INFOPLIST_KEY_CFBundleDisplayName: PocketServer
+    INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+    INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+    INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+    INFOPLIST_KEY_UILaunchScreen_Generation: YES
+    INFOPLIST_KEY_UIStatusBarStyle: UIStatusBarStyleDefault
+    GENERATE_INFOPLIST_FILE: YES
+targets:
+  PocketServer:
+    type: application
+    platform: iOS
+    sources:
+      - PocketServer
+    settings:
+      base:
+        PRODUCT_NAME: PocketServer
+        CODE_SIGNING_ALLOWED: NO
