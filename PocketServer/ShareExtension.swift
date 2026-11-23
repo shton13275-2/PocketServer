@@ -1,13 +1,5 @@
-import SwiftUI
+import UIKit
 import UniformTypeIdentifiers
-
-@main
-struct PocketServerShareExtension: UIViewControllerRepresentable {
-    func makeUIViewController(context: Context) -> UIViewController {
-        ShareViewController()
-    }
-    func updateUIViewController(_ controller: UIViewController, context: Context) {}
-}
 
 final class ShareViewController: UIViewController {
     override func viewDidLoad() {
@@ -31,38 +23,38 @@ final class ShareViewController: UIViewController {
             return
         }
         let providers = items.flatMap { $0.attachments ?? [] }
-        guard !providers.isEmpty else {
-            finish("共有項目がありません")
-            return
-        }
-        let group = DispatchGroup()
-        var savedCount = 0
-        guard let base = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.jp.shton13275.PocketServer") else {
+        guard !providers.isEmpty,
+              let base = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.jp.shton13275.PocketServer") else {
             finish("共有フォルダを利用できません")
             return
         }
         let inbox = base.appendingPathComponent("SharedInbox", isDirectory: true)
         try? FileManager.default.createDirectory(at: inbox, withIntermediateDirectories: true)
+        let group = DispatchGroup()
+        let lock = NSLock()
+        var savedCount = 0
 
         for provider in providers {
-            if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
+            if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+                group.enter()
+                provider.loadFileRepresentation(forTypeIdentifier: UTType.fileURL.identifier) { url, _ in
+                    if let url {
+                        let name = url.lastPathComponent.isEmpty ? "shared-file" : url.lastPathComponent
+                        let destination = inbox.appendingPathComponent(UUID().uuidString + "-" + name)
+                        if (try? FileManager.default.copyItem(at: url, to: destination)) != nil {
+                            lock.lock(); savedCount += 1; lock.unlock()
+                        }
+                    }
+                    group.leave()
+                }
+            } else if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
                 group.enter()
                 provider.loadItem(forTypeIdentifier: UTType.url.identifier, options: nil) { item, _ in
                     if let url = item as? URL {
                         let file = inbox.appendingPathComponent(UUID().uuidString + ".urltxt")
-                        try? url.absoluteString.write(to: file, atomically: true, encoding: .utf8)
-                        savedCount += 1
-                    }
-                    group.leave()
-                }
-            } else if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
-                group.enter()
-                provider.loadFileRepresentation(forTypeIdentifier: UTType.fileURL.identifier) { url, _ in
-                    if let url {
-                        let name = url.lastPathComponent
-                        let destination = inbox.appendingPathComponent(UUID().uuidString + "-" + name)
-                        try? FileManager.default.copyItem(at: url, to: destination)
-                        savedCount += 1
+                        if (try? url.absoluteString.write(to: file, atomically: true, encoding: .utf8)) != nil {
+                            lock.lock(); savedCount += 1; lock.unlock()
+                        }
                     }
                     group.leave()
                 }
@@ -72,15 +64,16 @@ final class ShareViewController: UIViewController {
                     if let url {
                         let name = url.lastPathComponent.isEmpty ? "shared-file" : url.lastPathComponent
                         let destination = inbox.appendingPathComponent(UUID().uuidString + "-" + name)
-                        try? FileManager.default.copyItem(at: url, to: destination)
-                        savedCount += 1
+                        if (try? FileManager.default.copyItem(at: url, to: destination)) != nil {
+                            lock.lock(); savedCount += 1; lock.unlock()
+                        }
                     }
                     group.leave()
                 }
             }
         }
         group.notify(queue: .main) {
-            self.finish(savedCount > 0 ? "共有を受け取りました。PocketServerを開いて「共有メニューから取り込む」を押してください。" : "共有ファイルを受け取れませんでした")
+            self.finish(savedCount > 0 ? "共有を受け取りました。PocketServerを開き、「共有メニューから取り込む」を押してください。" : "共有ファイルを受け取れませんでした")
         }
     }
 
@@ -98,7 +91,7 @@ final class ShareViewController: UIViewController {
             label.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             label.centerYAnchor.constraint(equalTo: view.centerYAnchor)
         ])
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
             self.extensionContext?.completeRequest(returningItems: nil)
         }
     }
