@@ -24,7 +24,7 @@ struct WebDownloadBrowser: UIViewRepresentable {
         let server: ServerController
         let onSaved: () -> Void
         weak var webView: WKWebView?
-        private var downloadNames: [ObjectIdentifier: String] = [:]
+        private var downloadDestinations: [ObjectIdentifier: (URL, String)] = [:]
 
         init(server: ServerController, onSaved: @escaping () -> Void) {
             self.server = server
@@ -62,14 +62,10 @@ struct WebDownloadBrowser: UIViewRepresentable {
         }
 
         func downloadDidFinish(_ download: WKDownload) {
-            guard let temp = downloadNames.removeValue(forKey: ObjectIdentifier(download)) else { return }
-            // WKDownload saves to a UUID-prefixed temp path. Locate the matching file by
-            // filename prefix in the temporary directory for the subsequent safe copy.
-            let files = (try? FileManager.default.contentsOfDirectory(at: FileManager.default.temporaryDirectory, includingPropertiesForKeys: nil)) ?? []
-            guard let saved = files.first(where: { $0.lastPathComponent.contains(temp) }) else { return }
+            guard let (savedURL, suggestedName) = downloadDestinations.removeValue(forKey: ObjectIdentifier(download)) else { return }
             Task { @MainActor in
-                server.saveDownloadedFile(from: saved, suggestedName: temp)
-                try? FileManager.default.removeItem(at: saved)
+                server.saveDownloadedFile(from: savedURL, suggestedName: suggestedName)
+                try? FileManager.default.removeItem(at: savedURL)
                 onSaved()
             }
         }
