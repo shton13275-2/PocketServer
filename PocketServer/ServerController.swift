@@ -79,9 +79,17 @@ final class ServerController: ObservableObject {
             defer { if access { source.stopAccessingSecurityScopedResource() } }
             do {
                 let attributes = try FileManager.default.attributesOfItem(atPath: source.path)
+                guard (attributes[.type] as? FileAttributeType) == .typeRegular else {
+                    lastError = "\(source.lastPathComponent): 通常のファイルのみ取り込めます"
+                    continue
+                }
                 let fileSize = (attributes[.size] as? NSNumber)?.intValue ?? 0
                 guard fileSize <= 25 * 1024 * 1024 else {
                     lastError = "\(source.lastPathComponent): 25 MBを超えるファイルは取り込めません"
+                    continue
+                }
+                guard Self.isSafeFilename(source.lastPathComponent) else {
+                    lastError = "\(source.lastPathComponent): 使用できないファイル名です"
                     continue
                 }
                 let destination = uniqueDestination(for: source.lastPathComponent)
