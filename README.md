@@ -22,7 +22,7 @@ An iOS app that turns an iPhone into a local-network file server for browsers on
 - Stronger HTTP request handling / security hardening
 - Transfer progress and cancellation (native URL download currently uses a temporary file but does not expose progress/cancel)
 
-## Safety and limitations
+## Safety and limitations\n- Shared items are queued by the share extension; the app does not auto-open, so open PocketServer and tap the share-import button when needed\n- In-app browser websites may require login; not all download flows are supported
 - Intended for local Wi-Fi only; do not use port forwarding
 - The browser server has no authentication; use trusted networks and stop the server when not needed
 - Background server operation is not guaranteed
