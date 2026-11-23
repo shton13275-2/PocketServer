@@ -48,9 +48,7 @@ final class ServerController: ObservableObject {
                     }
                 }
             }
-            listener.newConnectionHandler = { connection in
-                Self.handle(connection, on: self.queue)
-            }
+            listener.newConnectionHandler = { connection in Self.handle(connection, on: self.queue) }
             listener.start(queue: queue)
             statusMessage = "起動処理中"
         } catch {
@@ -69,78 +67,180 @@ final class ServerController: ObservableObject {
 
     nonisolated private static func handle(_ connection: NWConnection, on queue: DispatchQueue) {
         connection.start(queue: queue)
-        connection.receive(minimumIncompleteLength: 1, maximumLength: 16_384) { data, _, _, error in
-            guard error == nil, let data, !data.isEmpty,
-                  let request = String(data: data, encoding: .utf8),
-                  let requestLine = request.components(separatedBy: "\r\n").first else {
-                connection.cancel()
+        receiveRequest(connection, accumulated: Data(), on: queue)
+    }
+
+    nonisolated private static func receiveRequest(_ connection: NWConnection, accumulated: Data, on queue: DispatchQueue) {
+        connection.receive(minimumIncompleteLength: 1, maximumLength: 65_536) { data, _, isComplete, error in
+            guard error == nil, let data, !data.isEmpty else {
+                if isComplete { connection.cancel() }
                 return
             }
-
-            let parts = requestLine.split(separator: " ", omittingEmptySubsequences: true)
-            guard parts.count >= 2 else {
+            var all = accumulated
+            all.append(data)
+            guard all.count <= 27 * 1024 * 1024 else {
+                send(status: "413 Payload Too Large", body: Data("Request too large".utf8), contentType: "text/plain", on: connection)
+                return
+            }
+            guard let headerEnd = all.range(of: Data("\r\n\r\n".utf8)) else {
+                receiveRequest(connection, accumulated: all, on: queue)
+                return
+            }
+            let headerData = all.subdata(in: 0..<headerEnd.lowerBound)
+            guard let headerText = String(data: headerData, encoding: .utf8) else {
+                send(status: "400 Bad Request", body: Data("Bad headers".utf8), contentType: "text/plain", on: connection)
+                return
+            }
+            let headerLines = headerText.components(separatedBy: "\r\n")
+            guard let requestLine = headerLines.first else {
                 send(status: "400 Bad Request", body: Data("Bad request".utf8), contentType: "text/plain", on: connection)
                 return
             }
-            let method = String(parts[0])
-            let target = String(parts[1])
-            guard method == "GET" else {
-                send(status: "405 Method Not Allowed", body: Data("Method not allowed".utf8), contentType: "text/plain", on: connection)
+            let requestParts = requestLine.split(separator: " ", omittingEmptySubsequences: true)
+            guard requestParts.count >= 2 else {
+                send(status: "400 Bad Request", body: Data("Bad request".utf8), contentType: "text/plain", on: connection)
                 return
             }
-
-            if target == "/" || target == "/index.html" {
-                let html = fileListHTML()
-                send(status: "200 OK", body: Data(html.utf8), contentType: "text/html; charset=utf-8", on: connection)
+            let method = String(requestParts[0])
+            let target = String(requestParts[1])
+            let contentLength = headerLines.compactMap { line -> Int? in
+                let parts = line.split(separator: ":", maxSplits: 1)
+                guard parts.count == 2, parts[0].lowercased() == "content-length" else { return nil }
+                return Int(parts[1].trimmingCharacters(in: .whitespaces))
+            }.first ?? 0
+            guard contentLength >= 0, contentLength <= 26 * 1024 * 1024 else {
+                send(status: "413 Payload Too Large", body: Data("Request too large".utf8), contentType: "text/plain", on: connection)
                 return
             }
-
-            if target.hasPrefix("/download/") {
-                let encodedName = String(target.dropFirst("/download/".count)).components(separatedBy: "?").first ?? ""
-                guard let name = encodedName.removingPercentEncoding, isSafeFilename(name) else {
-                    send(status: "400 Bad Request", body: Data("Invalid filename".utf8), contentType: "text/plain", on: connection)
-                    return
-                }
-                let fileURL = storageURL().appendingPathComponent(name, isDirectory: false)
-                guard FileManager.default.fileExists(atPath: fileURL.path),
-                      let values = try? fileURL.resourceValues(forKeys: [.isRegularFileKey]),
-                      values.isRegularFile == true,
-                      let fileData = try? Data(contentsOf: fileURL),
-                      fileData.count <= 25 * 1024 * 1024 else {
-                    send(status: "404 Not Found", body: Data("File not found or exceeds 25 MB limit".utf8), contentType: "text/plain", on: connection)
-                    return
-                }
-                let mime = mimeType(for: name)
-                send(status: "200 OK", body: fileData, contentType: mime, extraHeaders: "Content-Disposition: attachment; filename*=UTF-8''\(encodedName)", on: connection)
+            let bodyStart = headerEnd.upperBound
+            let receivedBody = all.count - bodyStart
+            if receivedBody < contentLength {
+                receiveRequest(connection, accumulated: all, on: queue)
                 return
             }
-
-            send(status: "404 Not Found", body: Data("Not found".utf8), contentType: "text/plain", on: connection)
+            let body = all.subdata(in: bodyStart..<bodyStart + contentLength)
+            route(method: method, target: target, headers: headerLines, body: body, on: connection)
         }
     }
 
+    nonisolated private static func route(method: String, target: String, headers: [String], body: Data, on connection: NWConnection) {
+        if method == "GET", target == "/" || target == "/index.html" {
+            send(status: "200 OK", body: Data(fileListHTML().utf8), contentType: "text/html; charset=utf-8", on: connection)
+            return
+        }
+
+        if method == "GET", target.hasPrefix("/download/") {
+            let encodedName = String(target.dropFirst("/download/".count)).components(separatedBy: "?").first ?? ""
+            guard let name = encodedName.removingPercentEncoding, isSafeFilename(name) else {
+                send(status: "400 Bad Request", body: Data("Invalid filename".utf8), contentType: "text/plain", on: connection)
+                return
+            }
+            let fileURL = storageURL().appendingPathComponent(name, isDirectory: false)
+            guard let values = try? fileURL.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey]),
+                  values.isRegularFile == true, let fileData = try? Data(contentsOf: fileURL),
+                  fileData.count <= 25 * 1024 * 1024 else {
+                send(status: "404 Not Found", body: Data("File not found or exceeds 25 MB limit".utf8), contentType: "text/plain", on: connection)
+                return
+            }
+            let mime = mimeType(for: name)
+            send(status: "200 OK", body: fileData, contentType: mime, extraHeaders: "Content-Disposition: attachment; filename*=UTF-8''\(encodedName)", on: connection)
+            return
+        }
+
+        if method == "POST", target == "/upload" {
+            guard let contentType = headers.first(where: { $0.lowercased().hasPrefix("content-type:") })?.components(separatedBy: ":").dropFirst().joined().trimmingCharacters(in: .whitespaces),
+                  let boundaryRange = contentType.range(of: "boundary=") else {
+                send(status: "400 Bad Request", body: Data("Missing multipart boundary".utf8), contentType: "text/plain", on: connection)
+                return
+            }
+            let boundary = String(contentType[boundaryRange.upperBound...]).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+            guard let upload = parseMultipart(body, boundary: boundary), isSafeFilename(upload.name), upload.data.count <= 25 * 1024 * 1024 else {
+                send(status: "400 Bad Request", body: Data("Invalid upload or file exceeds 25 MB limit".utf8), contentType: "text/plain", on: connection)
+                return
+            }
+            let folder = storageURL()
+            try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            let destination = folder.appendingPathComponent(upload.name)
+            guard !FileManager.default.fileExists(atPath: destination.path) else {
+                send(status: "409 Conflict", body: Data("File already exists. Rename it and retry.".utf8), contentType: "text/plain", on: connection)
+                return
+            }
+            do {
+                try upload.data.write(to: destination, options: .atomic)
+                send(status: "303 See Other", body: Data("Uploaded".utf8), contentType: "text/plain", extraHeaders: "Location: /", on: connection)
+            } catch {
+                send(status: "500 Internal Server Error", body: Data("Could not save file".utf8), contentType: "text/plain", on: connection)
+            }
+            return
+        }
+
+        if method == "POST", target.hasPrefix("/delete/") {
+            let encodedName = String(target.dropFirst("/delete/".count)).components(separatedBy: "?").first ?? ""
+            guard let name = encodedName.removingPercentEncoding, isSafeFilename(name) else {
+                send(status: "400 Bad Request", body: Data("Invalid filename".utf8), contentType: "text/plain", on: connection)
+                return
+            }
+            let fileURL = storageURL().appendingPathComponent(name)
+            guard let values = try? fileURL.resourceValues(forKeys: [.isRegularFileKey]), values.isRegularFile == true else {
+                send(status: "404 Not Found", body: Data("File not found".utf8), contentType: "text/plain", on: connection)
+                return
+            }
+            do {
+                try FileManager.default.removeItem(at: fileURL)
+                send(status: "303 See Other", body: Data("Deleted".utf8), contentType: "text/plain", extraHeaders: "Location: /", on: connection)
+            } catch {
+                send(status: "500 Internal Server Error", body: Data("Delete failed".utf8), contentType: "text/plain", on: connection)
+            }
+            return
+        }
+
+        send(status: (method == "GET" || method == "POST") ? "404 Not Found" : "405 Method Not Allowed", body: Data("Not found".utf8), contentType: "text/plain", on: connection)
+    }
+
+    private struct MultipartFile {
+        let name: String
+        let data: Data
+    }
+
+    nonisolated private static func parseMultipart(_ body: Data, boundary: String) -> MultipartFile? {
+        guard !boundary.isEmpty else { return nil }
+        let headerSeparator = Data("\r\n\r\n".utf8)
+        let bodyBoundary = Data("\r\n--\(boundary)".utf8)
+        guard let separator = body.range(of: headerSeparator),
+              let nextBoundary = body.range(of: bodyBoundary, in: separator.upperBound..<body.count) else { return nil }
+        let headerText = String(data: body.subdata(in: 0..<separator.lowerBound), encoding: .utf8) ?? ""
+        guard let disposition = headerText.components(separatedBy: "\r\n").first(where: { $0.lowercased().hasPrefix("content-disposition:") }),
+              let fileNameToken = disposition.range(of: "filename=\""),
+              let endQuote = disposition[fileNameToken.upperBound...].firstIndex(of: "\"") else { return nil }
+        let rawName = String(disposition[fileNameToken.upperBound..<endQuote])
+        let decodedName = rawName.removingPercentEncoding ?? rawName
+        let fileData = body.subdata(in: separator.upperBound..<nextBoundary.lowerBound)
+        return MultipartFile(name: decodedName, data: fileData)
+    }
+
     nonisolated private static func fileListHTML() -> String {
-        let directory = storageURL()
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey], options: [.skipsHiddenFiles])) ?? []
+        let folder = storageURL()
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let files = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey], options: [.skipsHiddenFiles])) ?? []
         let rows = files.sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }.compactMap { url -> String? in
-            guard let values = try? url.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey]), values.isRegularFile == true,
-                  isSafeFilename(url.lastPathComponent) else { return nil }
-            let name = htmlEscape(url.lastPathComponent)
+            guard let values = try? url.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey]), values.isRegularFile == true, isSafeFilename(url.lastPathComponent) else { return nil }
+            let safeName = htmlEscape(url.lastPathComponent)
             let encoded = url.lastPathComponent.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed.subtracting(CharacterSet(charactersIn: "/"))) ?? ""
             let size = ByteCountFormatter.string(fromByteCount: Int64(values.fileSize ?? 0), countStyle: .file)
-            return "<li><span>\(name) <small>(\(size))</small></span><a href=\"/download/\(encoded)\">ダウンロード</a></li>"
+            return "<li><span>\(safeName) <small>(\(size))</small></span><div class=\"actions\"><a href=\"/download/\(encoded)\">ダウンロード</a><form method=\"post\" action=\"/delete/\(encoded)\" onsubmit=\"return confirm('このファイルを削除しますか？')\"><button type=\"submit\">削除</button></form></div></li>"
         }.joined()
         let empty = files.isEmpty ? "<p class=\"empty\">保存ファイルはまだありません。</p>" : ""
         return """
         <!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
         <title>PocketServer ファイル一覧</title><style>
         body{font-family:system-ui,sans-serif;max-width:760px;margin:24px auto;padding:0 16px;background:#f5f6f8;color:#17202b}
-        h1{font-size:1.6rem}ul{padding:0;list-style:none}li{display:flex;justify-content:space-between;gap:12px;padding:14px;margin:8px 0;background:white;border-radius:12px;overflow-wrap:anywhere}
-        a{color:#0878d1;text-decoration:none;white-space:nowrap}.empty{color:#667085;padding:20px}
-        small{color:#667085}.note{color:#667085;font-size:.9rem}
-        </style></head><body><h1>PocketServer</h1><p>iPhone内の共有フォルダ</p>\(empty)<ul>\(rows)</ul>
-        <p class="note">現在はファイル一覧とダウンロードのみ対応。アップロード・削除機能は未実装です。</p></body></html>
+        h1{font-size:1.6rem}ul{padding:0;list-style:none}li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;margin:8px 0;background:white;border-radius:12px;overflow-wrap:anywhere}
+        a{color:#0878d1;text-decoration:none;white-space:nowrap}.actions{display:flex;align-items:center;gap:12px}button{border:0;background:#fff0f0;color:#c22;padding:8px 12px;border-radius:8px;font:inherit;cursor:pointer}
+        .empty{color:#667085;padding:20px}small{color:#667085}.note{color:#667085;font-size:.9rem}
+        .upload{background:white;border-radius:12px;padding:16px;margin:18px 0}.upload input{max-width:100%;margin:10px 0}.upload button{background:#0878d1;color:white}
+        </style></head><body><h1>PocketServer</h1><p>iPhone内の共有フォルダ</p>
+        <section class="upload"><h2>ファイルをアップロード</h2><form method="post" action="/upload" enctype="multipart/form-data"><input type="file" name="file" required><br><button type="submit">アップロード</button><p class="note">最大25 MB。重複するファイル名は上書きしません。</p></form></section>
+        \(empty)<ul>\(rows)</ul><p class="note">同じWi-Fi内で利用してください。認証機能は未実装です。</p></body></html>
         """
     }
 
@@ -150,17 +250,11 @@ final class ServerController: ObservableObject {
     }
 
     nonisolated private static func isSafeFilename(_ name: String) -> Bool {
-        !name.isEmpty && name != "." && name != ".." &&
-        !name.contains("/") && !name.contains("\\") &&
-        !name.contains("\0") && name.utf8.count <= 240
+        !name.isEmpty && name != "." && name != ".." && !name.contains("/") && !name.contains("\\") && !name.contains("\0") && name.utf8.count <= 240
     }
 
     nonisolated private static func htmlEscape(_ text: String) -> String {
-        text.replacingOccurrences(of: "&", with: "&amp;")
-            .replacingOccurrences(of: "<", with: "&lt;")
-            .replacingOccurrences(of: ">", with: "&gt;")
-            .replacingOccurrences(of: "\"", with: "&quot;")
-            .replacingOccurrences(of: "'", with: "&#39;")
+        text.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;").replacingOccurrences(of: ">", with: "&gt;").replacingOccurrences(of: "\"", with: "&quot;").replacingOccurrences(of: "'", with: "&#39;")
     }
 
     nonisolated private static func mimeType(for filename: String) -> String {
@@ -188,11 +282,9 @@ final class ServerController: ObservableObject {
         var ifaddr: UnsafeMutablePointer<ifaddrs>?
         guard getifaddrs(&ifaddr) == 0, let first = ifaddr else { return nil }
         defer { freeifaddrs(ifaddr) }
-
         for pointer in sequence(first: first, next: { $0.pointee.ifa_next }) {
             let interface = pointer.pointee
-            guard let addr = interface.ifa_addr, addr.pointee.sa_family == UInt8(AF_INET) else { continue }
-            guard String(cString: interface.ifa_name) == "en0" else { continue }
+            guard let addr = interface.ifa_addr, addr.pointee.sa_family == UInt8(AF_INET), String(cString: interface.ifa_name) == "en0" else { continue }
             var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
             let result = getnameinfo(addr, socklen_t(addr.pointee.sa_len), &hostname, socklen_t(hostname.count), nil, 0, NI_NUMERICHOST)
             if result == 0 {
