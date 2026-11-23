@@ -3,7 +3,7 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @StateObject private var server = ServerController()
-    @State private var showingImporter = false
+    @State private var showingImporter = false\n    @State private var showingBrowser = false
     @State private var downloadURL = ""
     @State private var files: [URL] = []
 
@@ -30,8 +30,8 @@ struct ContentView: View {
             }
             .navigationTitle("PocketServer").navigationBarTitleDisplayMode(.inline)
             .background(Color(uiColor: .systemGroupedBackground))
-            .onAppear(perform: refreshFiles)
-            .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.item], allowsMultipleSelection: true) { result in
+            .onAppear { server.importSharedInbox(); refreshFiles() }
+            .sheet(isPresented: $showingBrowser) {\n                WebDownloadBrowser(server: server, onSaved: refreshFiles)\n            }\n            .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.item], allowsMultipleSelection: true) { result in
                 switch result {
                 case .success(let selectedURLs):
                     server.importFiles(selectedURLs)
@@ -75,28 +75,37 @@ struct ContentView: View {
 
     private var nativeFileTools: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label("アプリ内ファイル操作", systemImage: "folder.badge.plus").font(.headline)
+            Label("ダウンロード・取り込み", systemImage: "folder.badge.plus").font(.headline)
             Button { showingImporter = true } label: {
-                Label("「ファイル」から取り込む", systemImage: "square.and.arrow.down")
+                Label("「ファイル」から直接取り込む", systemImage: "folder")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }.buttonStyle(.bordered)
+            Button {
+                server.importSharedInbox()
+                refreshFiles()
+            } label: {
+                Label("共有メニューから取り込む", systemImage: "square.and.arrow.down")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }.buttonStyle(.bordered)
+            Button { showingBrowser = true } label: {
+                Label("アプリ内ブラウザでダウンロード", systemImage: "globe")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }.buttonStyle(.borderedProminent)
             VStack(alignment: .leading, spacing: 8) {
-                Text("URLからダウンロード").font(.subheadline.weight(.medium))
+                Text("URLを直接入力").font(.subheadline.weight(.medium))
                 TextField("https://example.com/file.zip", text: $downloadURL)
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
                     .keyboardType(.URL).textFieldStyle(.roundedBorder)
                 Button {
                     let input = downloadURL.trimmingCharacters(in: .whitespacesAndNewlines)
-                    Task {
-                        await server.downloadFromURL(input)
-                        refreshFiles()
-                    }
+                    Task { await server.downloadFromURL(input); refreshFiles() }
                 } label: {
-                    Label("ダウンロードして保存", systemImage: "arrow.down.circle")
+                    Label("URLからダウンロード", systemImage: "arrow.down.circle")
                         .frame(maxWidth: .infinity)
-                }.buttonStyle(.borderedProminent).disabled(downloadURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }.buttonStyle(.bordered)
+                    .disabled(downloadURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
-            Text("取り込み・ダウンロードは最大25 MB。ファイル名が重複すると末尾に番号を付けて保存します。")
+            Text("共有メニューからのファイルやURLも取り込めます。各ファイル最大25 MB。重複名は番号付きで保存します。")
                 .font(.caption).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading).padding(18)
@@ -141,7 +150,7 @@ struct ContentView: View {
             FeatureRow(title: "ブラウザからアップロード", icon: "arrow.up.doc", completed: true)
             FeatureRow(title: "ブラウザから削除", icon: "trash", completed: true)
             FeatureRow(title: "アプリ内ファイル取り込み", icon: "square.and.arrow.down", completed: true)
-            FeatureRow(title: "URLダウンロード", icon: "link", completed: true)
+            FeatureRow(title: "URLダウンロード・アプリ内ブラウザ", icon: "link", completed: true)\n            FeatureRow(title: "共有メニューからの取り込み", icon: "square.and.arrow.down", completed: true)
             FeatureRow(title: "パスワード保護", icon: "lock", completed: false)
         }.frame(maxWidth: .infinity, alignment: .leading).padding(18)
             .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18))
