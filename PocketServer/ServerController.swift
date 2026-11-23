@@ -140,7 +140,7 @@ final class ServerController: ObservableObject {
         }
     }
 
-    func saveDownloadedFile(from temporaryURL: URL, suggestedName: String) {
+    func reportDownloadError(_ message: String) {\n        lastError = message\n        statusMessage = "失敗"\n    }\n\n    func saveDownloadedFile(from temporaryURL: URL, suggestedName: String) {
         do {
             let attrs = try FileManager.default.attributesOfItem(atPath: temporaryURL.path)
             let size = (attrs[.size] as? NSNumber)?.intValue ?? 0
