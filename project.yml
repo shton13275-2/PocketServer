@@ -14,9 +14,10 @@ targets:
     type: application
     platform: iOS
     sources:
-      - path: PocketServer
-        excludes:
-          - ShareExtension.swift
+      - PocketServer/ContentView.swift
+      - PocketServer/PocketServerApp.swift
+      - PocketServer/ServerController.swift
+      - PocketServer/WebDownloadBrowser.swift
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: jp.shton13275.PocketServer
