@@ -67,7 +67,7 @@ final class ServerController: ObservableObject {
         localAddress = nil
     }
 
-    private static func handle(_ connection: NWConnection, on queue: DispatchQueue) {
+    nonisolated private static func handle(_ connection: NWConnection, on queue: DispatchQueue) {
         connection.start(queue: queue)
         connection.receive(minimumIncompleteLength: 1, maximumLength: 16_384) { data, _, _, error in
             guard error == nil, let data, !data.isEmpty else {
