@@ -30,7 +30,7 @@ struct ContentView: View {
             }
             .navigationTitle("PocketServer").navigationBarTitleDisplayMode(.inline)
             .background(Color(uiColor: .systemGroupedBackground))
-            .onAppear { server.importSharedInbox(); refreshFiles() }
+            .task { await server.importSharedInbox(); refreshFiles() }
             .sheet(isPresented: $showingBrowser) {
                 InAppBrowserSheet(server: server, onSaved: refreshFiles)
             }
