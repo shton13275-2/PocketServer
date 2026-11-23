@@ -31,7 +31,7 @@ struct ContentView: View {
             .navigationTitle("PocketServer").navigationBarTitleDisplayMode(.inline)
             .background(Color(uiColor: .systemGroupedBackground))
             .onAppear { server.importSharedInbox(); refreshFiles() }
-            .sheet(isPresented: $showingBrowser) {\n                WebDownloadBrowser(server: server, onSaved: refreshFiles)\n            }\n            .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.item], allowsMultipleSelection: true) { result in
+            .sheet(isPresented: $showingBrowser) {\n                InAppBrowserSheet(server: server, onSaved: refreshFiles)\n            }\n            .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.item], allowsMultipleSelection: true) { result in
                 switch result {
                 case .success(let selectedURLs):
                     server.importFiles(selectedURLs)
