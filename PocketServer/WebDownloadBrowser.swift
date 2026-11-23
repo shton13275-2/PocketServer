@@ -56,6 +56,11 @@ struct WebDownloadBrowser: UIViewRepresentable {
         }
 
         func download(_ download: WKDownload, decideDestinationUsing response: URLResponse, suggestedFilename: String, completionHandler: @escaping (URL?) -> Void) {
+            guard response.expectedContentLength <= 25 * 1024 * 1024 || response.expectedContentLength < 0 else {
+                completionHandler(nil)
+                Task { @MainActor in server.reportDownloadError("25 MBを超えるファイルはダウンロードできません") }
+                return
+            }
             let safeName = URL(fileURLWithPath: suggestedFilename).lastPathComponent
             let destination = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + "-" + safeName)
             downloadDestinations[ObjectIdentifier(download)] = (destination, safeName)
