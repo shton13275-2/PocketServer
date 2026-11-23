@@ -140,6 +140,58 @@ final class ServerController: ObservableObject {
         }
     }
 
+    func saveDownloadedFile(from temporaryURL: URL, suggestedName: String) {
+        do {
+            let attrs = try FileManager.default.attributesOfItem(atPath: temporaryURL.path)
+            let size = (attrs[.size] as? NSNumber)?.intValue ?? 0
+            guard size <= 25 * 1024 * 1024 else {
+                lastError = "25 MBを超えるファイルは保存できません"
+                statusMessage = "失敗"
+                return
+            }
+            let candidate = URL(fileURLWithPath: suggestedName).lastPathComponent
+            let safeName = candidate.isEmpty ? "download" : candidate
+            let destination = uniqueDestination(for: safeName)
+            try FileManager.default.copyItem(at: temporaryURL, to: destination)
+            statusMessage = "ダウンロード完了: \(destination.lastPathComponent)"
+            lastError = nil
+        } catch {
+            lastError = "保存失敗: \(error.localizedDescription)"
+            statusMessage = "失敗"
+        }
+    }
+
+    func importSharedInbox() {
+        guard let shared = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.jp.shton13275.PocketServer") else { return }
+        let inbox = shared.appendingPathComponent("SharedInbox", isDirectory: true)
+        guard let items = try? FileManager.default.contentsOfDirectory(at: inbox, includingPropertiesForKeys: [.fileSizeKey], options: [.skipsHiddenFiles]) else { return }
+        for item in items {
+            if item.pathExtension.lowercased() == "urltxt" {
+                if let raw = try? String(contentsOf: item, encoding: .utf8) {
+                    Task { await downloadFromURL(raw.trimmingCharacters(in: .whitespacesAndNewlines)) }
+                }
+                try? FileManager.default.removeItem(at: item)
+                continue
+            }
+            let attrs = try? FileManager.default.attributesOfItem(atPath: item.path)
+            let size = (attrs?[.size] as? NSNumber)?.intValue ?? 0
+            guard size <= 25 * 1024 * 1024, Self.isSafeFilename(item.lastPathComponent) else {
+                lastError = "\(item.lastPathComponent): 25 MB超過または無効なファイル"
+                try? FileManager.default.removeItem(at: item)
+                continue
+            }
+            do {
+                let dest = uniqueDestination(for: item.lastPathComponent)
+                try FileManager.default.copyItem(at: item, to: dest)
+                try FileManager.default.removeItem(at: item)
+                statusMessage = "共有ファイルを取り込みました"
+                lastError = nil
+            } catch {
+                lastError = "共有ファイル取り込み失敗: \(error.localizedDescription)"
+            }
+        }
+    }
+
     func deleteLocalFile(_ url: URL) {
         do {
             try FileManager.default.removeItem(at: url)
