@@ -5,7 +5,7 @@ An iOS app that turns an iPhone into a local-network file server for browsers on
 ## Current features
 - Start/stop local HTTP server and share its LAN address
 - Browser file listing, download, single-file upload, and delete
-- Native Files picker import (multi-select) into PocketServer's folder
+- Native Files picker import (multi-select) into PocketServer's folder\n- Share extension to receive shared files and web URLs from the iOS share sheet; received items are queued in an App Group inbox for import when PocketServer is open\n- In-app WebKit browser with download handling and direct URL downloads
 - Download a URL (HTTP/HTTPS) directly into the app's storage; checks HTTP response and saves through a temporary file
 - Native list, refresh, and delete controls
 - File transfer/import/download size limit: 25 MB per file
@@ -13,7 +13,7 @@ An iOS app that turns an iPhone into a local-network file server for browsers on
 
 ## Not yet implemented
 - Authentication/password protection
-- Download progress percentage and cancellation
+- Download progress percentage and cancellation\n- Share inbox imports are triggered when the app opens or when the user taps the import button (not guaranteed to auto-open the app)\n- In-app browser websites may require login; not all download flows are supported
 - Multi-file upload in browser
 - Stronger HTTP request handling / security hardening
 - Transfer progress and cancellation (native URL download currently uses a temporary file but does not expose progress/cancel)
