@@ -37,7 +37,7 @@ struct ContentView: View {
                     server.importFiles(selectedURLs)
                     refreshFiles()
                 case .failure:
-                    // The picker was dismissed or failed; leave the current screen state unchanged.
+                    break
                 }
             }
         }
