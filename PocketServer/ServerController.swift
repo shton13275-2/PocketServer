@@ -167,7 +167,7 @@ final class ServerController: ObservableObject {
     }
 
     func importSharedInbox() {
-        guard let shared = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.jp.shton13275.PocketServer") else { return }
+        guard let shared = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.jp.shton13275.pocketserver") else { return }
         let inbox = shared.appendingPathComponent("SharedInbox", isDirectory: true)
         guard let items = try? FileManager.default.contentsOfDirectory(at: inbox, includingPropertiesForKeys: [.fileSizeKey], options: [.skipsHiddenFiles]) else { return }
         for item in items {
