@@ -7,6 +7,30 @@ struct ContentView: View {
     @State private var showingBrowser = false
     @State private var downloadURL = ""
     @State private var files: [URL] = []
+    @State private var searchText = ""
+    @State private var sortOrder: FileSortOrder = .name
+
+    private var displayedFiles: [URL] {
+        let filtered = files.filter { file in
+            searchText.isEmpty || file.lastPathComponent.localizedCaseInsensitiveContains(searchText)
+        }
+        return filtered.sorted { lhs, rhs in
+            switch sortOrder {
+            case .name:
+                return lhs.lastPathComponent.localizedStandardCompare(rhs.lastPathComponent) == .orderedAscending
+            case .size:
+                let left = fileSizeBytes(lhs)
+                let right = fileSizeBytes(rhs)
+                if left == right { return lhs.lastPathComponent.localizedStandardCompare(rhs.lastPathComponent) == .orderedAscending }
+                return left > right
+            case .modified:
+                let left = modificationDate(lhs)
+                let right = modificationDate(rhs)
+                if left == right { return lhs.lastPathComponent.localizedStandardCompare(rhs.lastPathComponent) == .orderedAscending }
+                return left > right
+            }
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -120,12 +144,34 @@ struct ContentView: View {
             HStack {
                 Label("PocketServer内のファイル", systemImage: "folder").font(.headline)
                 Spacer()
+                Menu {
+                    ForEach(FileSortOrder.allCases) { order in
+                        Button {
+                            sortOrder = order
+                        } label: {
+                            if sortOrder == order {
+                                Label(order.title, systemImage: "checkmark")
+                            } else {
+                                Text(order.title)
+                            }
+                        }
+                    }
+                } label: {
+                    Label("並び替え", systemImage: "arrow.up.arrow.down")
+                        .labelStyle(.iconOnly)
+                }
+                .accessibilityLabel("並び替え：現在は\(sortOrder.title)")
                 Button(action: refreshFiles) { Image(systemName: "arrow.clockwise") }.accessibilityLabel("再読み込み")
             }
+            TextField("ファイル名を検索", text: $searchText)
+                .textFieldStyle(.roundedBorder)
+                .accessibilityLabel("ファイル名を検索")
             if files.isEmpty {
                 Text("保存ファイルはありません").font(.subheadline).foregroundStyle(.secondary)
+            } else if displayedFiles.isEmpty {
+                Text("検索結果がありません").font(.subheadline).foregroundStyle(.secondary)
             } else {
-                ForEach(files, id: \.self) { file in
+                ForEach(displayedFiles, id: \.self) { file in
                     HStack(spacing: 10) {
                         Image(systemName: "doc").foregroundStyle(.secondary)
                         VStack(alignment: .leading, spacing: 3) {
@@ -145,8 +191,12 @@ struct ContentView: View {
                         } label: { Image(systemName: "trash") }
                             .pocketGlassIconButton().accessibilityLabel("削除")
                     }
-                    if file != files.last { Divider() }
+                    if file != displayedFiles.last { Divider() }
                 }
+            }
+            if !files.isEmpty {
+                Text("\(displayedFiles.count) / \(files.count) 件")
+                    .font(.caption).foregroundStyle(.secondary)
             }
         }.frame(maxWidth: .infinity, alignment: .leading).padding(18)
             .pocketGlassCard(cornerRadius: 18)
@@ -161,6 +211,7 @@ struct ContentView: View {
             FeatureRow(title: "「ファイル」から取り込み", icon: "square.and.arrow.down", completed: true)
             FeatureRow(title: "URLダウンロード・アプリ内ブラウザ", icon: "link", completed: true)
             FeatureRow(title: "共有メニューから取り込み", icon: "square.and.arrow.down", completed: true)
+            FeatureRow(title: "ファイル検索・並び替え", icon: "magnifyingglass", completed: true)
             FeatureRow(title: "パスワード保護", icon: "lock", completed: false)
         }.frame(maxWidth: .infinity, alignment: .leading).padding(18)
             .pocketGlassCard(cornerRadius: 18)
@@ -168,8 +219,28 @@ struct ContentView: View {
 
     private func refreshFiles() { files = server.filesInStorage() }
     private func fileSize(_ url: URL) -> String {
-        let bytes = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
-        return ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file)
+        ByteCountFormatter.string(fromByteCount: Int64(fileSizeBytes(url)), countStyle: .file)
+    }
+    private func fileSizeBytes(_ url: URL) -> Int {
+        (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+    }
+    private func modificationDate(_ url: URL) -> Date {
+        (try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+    }
+}
+
+private enum FileSortOrder: String, CaseIterable, Identifiable {
+    case name
+    case size
+    case modified
+
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .name: return "名前（A→Z）"
+        case .size: return "サイズ（大きい順）"
+        case .modified: return "更新日時（新しい順）"
+        }
     }
 }
 
