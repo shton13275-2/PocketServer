@@ -70,10 +70,10 @@ struct ContentView: View {
             } label: {
                 Text(server.isRunning || server.statusMessage == "起動処理中" ? "サーバーを停止" : "サーバーを起動")
                     .frame(maxWidth: .infinity).padding(.vertical, 4)
-            }.buttonStyle(.borderedProminent).tint(server.isRunning ? .red : .blue)
+            }.pocketGlassButton(prominent: true).tint(server.isRunning ? .red : .blue)
         }
         .frame(maxWidth: .infinity, alignment: .leading).padding(18)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18))
+        .pocketGlassCard(cornerRadius: 18)
     }
 
     private var nativeFileTools: some View {
@@ -82,17 +82,17 @@ struct ContentView: View {
             Button { showingImporter = true } label: {
                 Label("「ファイル」から直接取り込む", systemImage: "folder")
                     .frame(maxWidth: .infinity, alignment: .leading)
-            }.buttonStyle(.bordered)
+            }.pocketGlassButton()
             Button {
                 Task { await server.importSharedInbox(); refreshFiles() }
             } label: {
                 Label("共有メニューから取り込む", systemImage: "square.and.arrow.down")
                     .frame(maxWidth: .infinity, alignment: .leading)
-            }.buttonStyle(.bordered)
+            }.pocketGlassButton()
             Button { showingBrowser = true } label: {
                 Label("アプリ内ブラウザでダウンロード", systemImage: "globe")
                     .frame(maxWidth: .infinity, alignment: .leading)
-            }.buttonStyle(.borderedProminent)
+            }.pocketGlassButton(prominent: true)
             VStack(alignment: .leading, spacing: 8) {
                 Text("URLを直接入力").font(.subheadline.weight(.medium))
                 TextField("https://example.com/file.zip", text: $downloadURL)
@@ -104,7 +104,7 @@ struct ContentView: View {
                 } label: {
                     Label("URLからダウンロード", systemImage: "arrow.down.circle")
                         .frame(maxWidth: .infinity)
-                }.buttonStyle(.bordered)
+                }.pocketGlassButton()
                     .disabled(downloadURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             Text("共有メニューからのファイルやURLも取り込めます。各ファイル最大25 MB。重複名は番号付きで保存します。")
@@ -135,14 +135,14 @@ struct ContentView: View {
                         ShareLink(item: file) {
                             Image(systemName: "square.and.arrow.down")
                         }
-                        .buttonStyle(.borderless)
+                        .pocketGlassIconButton()
                         .accessibilityLabel("ファイルを書き出す・ダウンロード")
 
                         Button(role: .destructive) {
                             server.deleteLocalFile(file)
                             refreshFiles()
                         } label: { Image(systemName: "trash") }
-                            .buttonStyle(.borderless).accessibilityLabel("削除")
+                            .pocketGlassIconButton().accessibilityLabel("削除")
                     }
                     if file != files.last { Divider() }
                 }
@@ -187,3 +187,41 @@ private struct FeatureRow: View {
     }
 }
 #Preview { ContentView() }
+
+
+private extension View {
+    @ViewBuilder
+    func pocketGlassCard(cornerRadius: CGFloat) -> some View {
+        if #available(iOS 26.0, *) {
+            self.glassEffect(.regular, in: RoundedRectangle(cornerRadius: cornerRadius))
+        } else {
+            self.background(.thinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius))
+        }
+    }
+
+    @ViewBuilder
+    func pocketGlassButton(prominent: Bool = false) -> some View {
+        if #available(iOS 26.0, *) {
+            if prominent {
+                self.buttonStyle(.glassProminent)
+            } else {
+                self.buttonStyle(.glass)
+            }
+        } else {
+            if prominent {
+                self.buttonStyle(.borderedProminent)
+            } else {
+                self.buttonStyle(.bordered)
+            }
+        }
+    }
+
+    @ViewBuilder
+    func pocketGlassIconButton() -> some View {
+        if #available(iOS 26.0, *) {
+            self.buttonStyle(.glass)
+        } else {
+            self.buttonStyle(.borderless)
+        }
+    }
+}
