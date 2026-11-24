@@ -111,7 +111,7 @@ struct ContentView: View {
                 .font(.caption).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading).padding(18)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18))
+        .pocketGlassCard(cornerRadius: 18)
     }
 
     private var fileListCard: some View {
@@ -148,7 +148,7 @@ struct ContentView: View {
                 }
             }
         }.frame(maxWidth: .infinity, alignment: .leading).padding(18)
-            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18))
+            .pocketGlassCard(cornerRadius: 18)
     }
 
     private var progressCard: some View {
@@ -162,7 +162,7 @@ struct ContentView: View {
             FeatureRow(title: "共有メニューから取り込み", icon: "square.and.arrow.down", completed: true)
             FeatureRow(title: "パスワード保護", icon: "lock", completed: false)
         }.frame(maxWidth: .infinity, alignment: .leading).padding(18)
-            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18))
+            .pocketGlassCard(cornerRadius: 18)
     }
 
     private func refreshFiles() { files = server.filesInStorage() }
