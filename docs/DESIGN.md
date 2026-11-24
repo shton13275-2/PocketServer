@@ -62,3 +62,10 @@ Authentication, improved streaming transfer, progress and cancellation, robust H
 
 ## MVP completion
 On iPhone, start server; from a browser on the same LAN, upload, list, download and delete files; in-app import and URL download; stop server cleanly.
+
+
+## Liquid Glass UI
+
+- On iOS 26 and newer, the main cards and interactive buttons use native SwiftUI Liquid Glass (`glassEffect`, `.glass`, `.glassProminent`).
+- On iOS 17–25, the UI keeps compatible fallback materials and bordered button styles.
+- Liquid Glass is limited to the main surfaces and controls to avoid excessive effects.
