@@ -4,12 +4,13 @@ An iOS app that turns an iPhone into a local-network file server for browsers on
 
 ## Current features
 - Start/stop local HTTP server and share its LAN address
+- Offline local mode: app launch and local file management are available without Wi-Fi
 - Browser file listing, download, single-file upload, and delete
 - Native Files picker import (multi-select) into PocketServer's folder
 - Share extension to receive shared files and web URLs from the iOS share sheet; received items are queued in an App Group inbox for import when PocketServer is open
 - In-app WebKit browser with download handling and direct URL downloads
 - Download a URL (HTTP/HTTPS) directly into the app's storage; checks HTTP response and saves through a temporary file
-- Native list, refresh, and delete controls
+- Native list with filename search, sorting by name, file size, and modification date, refresh, export/share, and delete
 - File transfer/import/download size limit: 25 MB per file
 - Duplicate names from native import/download get an incrementing suffix; browser upload refuses to overwrite
 
@@ -22,7 +23,9 @@ An iOS app that turns an iPhone into a local-network file server for browsers on
 - Stronger HTTP request handling / security hardening
 - Transfer progress and cancellation (native URL download currently uses a temporary file but does not expose progress/cancel)
 
-## Safety and limitations\n- Shared items are queued by the share extension; the app does not auto-open, so open PocketServer and tap the share-import button when needed\n- In-app browser websites may require login; not all download flows are supported
+## Safety and limitations
+- Shared items are queued by the share extension; the app does not auto-open, so open PocketServer and tap the share-import button when needed
+- In-app browser websites may require login; not all download flows are supported
 - Intended for local Wi-Fi only; do not use port forwarding
 - The browser server has no authentication; use trusted networks and stop the server when not needed
 - Background server operation is not guaranteed
