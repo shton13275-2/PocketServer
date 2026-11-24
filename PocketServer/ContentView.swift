@@ -62,7 +62,8 @@ struct ContentView: View {
                     ShareLink(item: url) { Label("URLを共有", systemImage: "square.and.arrow.up") }
                 }
             } else if server.isRunning {
-                Text("IPアドレスを取得できません。Wi-Fi接続を確認してください。").font(.footnote).foregroundStyle(.secondary)
+                Text("Wi-Fi未接続のローカルモードで起動中です。保存ファイルの閲覧・取り込み・削除は使えます。別の端末からアクセスするにはWi-Fi接続が必要です。")
+                    .font(.footnote).foregroundStyle(.secondary)
             }
             if let error = server.lastError { Text(error).font(.footnote).foregroundStyle(.red) }
             Button {
