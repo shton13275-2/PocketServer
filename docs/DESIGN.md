@@ -67,5 +67,14 @@ On iPhone, start server; from a browser on the same LAN, upload, list, download 
 ## Liquid Glass UI
 
 - On iOS 26 and newer, the main cards and interactive buttons use native SwiftUI Liquid Glass (`glassEffect`, `.glass`, `.glassProminent`).
-- On iOS 17–25, the UI keeps compatible fallback materials and bordered button styles.
+- On iOS 17 and iOS 18, the UI keeps compatible fallback materials and bordered button styles.
 - Liquid Glass is limited to the main surfaces and controls to avoid excessive effects.
+
+
+## Offline local mode
+
+- The app and local file-management UI remain usable without Wi-Fi.
+- When the listener reaches ready but no Wi-Fi IPv4 address is available, show `ローカルモード（Wi-Fi未接続）`.
+- File listing, import, export/share, and deletion remain available offline.
+- Remote access from another device and URL downloads require network connectivity.
+- When Wi-Fi IPv4 is available, the server displays its address and normal LAN access mode.
