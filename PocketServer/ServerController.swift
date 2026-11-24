@@ -31,8 +31,10 @@ final class ServerController: ObservableObject {
                     switch state {
                     case .ready:
                         self?.isRunning = true
-                        self?.statusMessage = "起動中"
-                        self?.localAddress = Self.wifiIPv4Address()
+                        let address = Self.wifiIPv4Address()
+                        self?.localAddress = address
+                        self?.statusMessage = address == nil ? "ローカルモード（Wi-Fi未接続）" : "起動中"
+                        self?.lastError = nil
                     case .failed(let error):
                         self?.lastError = error.localizedDescription
                         self?.statusMessage = "エラー"
